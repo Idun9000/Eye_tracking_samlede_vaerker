@@ -1,0 +1,219 @@
+---
+title: "Social_engagement_eye_tracking"
+author: "Tilde Sloth"
+date: "2022-12-09"
+output: html_document
+---
+
+# Load in packages. Scanpath is loaded trough GitHub with devtools
+
+```{r}
+pacman::p_load(tidyverse)
+library("devtools");
+install_github("tmalsburg/scanpath/scanpath", dependencies = TRUE)
+library(scanpath)
+```
+
+# Load in data from the social engagement task
+
+```{r}
+FixationsSE <- read_csv("Data/Social Engagement/Fixations_SE.csv")
+SaccadesSE <- read_csv("Data/Social Engagement/Saccades_SE.csv")
+```
+
+# Scanpath investigation
+
+```{r}
+# Subsetting the condition/trial we want to look at - first person ostensive female
+Tilde <- subset(FixationsSE, ParticipantID == "Tilde" & ActorGender == "Female" & Direction == "First person" & Ostensiveness == "Ostensive")
+
+Laurits <- subset(FixationsSE, ParticipantID == "laurits" & ActorGender == "Female" & Direction == "First person" & Ostensiveness == "Ostensive")
+
+Niels <- subset(FixationsSE, ParticipantID == "Niels" & ActorGender == "Female" & Direction == "First person" & Ostensiveness == "Ostensive")
+```
+
+```{r}
+# Comparing Tilde and Laurits
+alignmentTL <- rscasim(Tilde, Laurits, Duration ~ PositionY + PositionX | Trial, 864, 525, 60, 1/30)
+
+SimilarityTL <- sum(alignmentTL$cost) # Quantifying the difference between scanpaths (Levenshtein distance)
+
+plot_alignment(Tilde, Laurits, alignmentTL, Duration ~ PositionX + PositionY | Trial, offset_x = 100, offset_y = 100, nudge_x = 100, nudge_y = 100) + theme_bw()
+# The red lines are the differences between two peoples fixations
+```
+
+```{r}
+# Comparing Tilde and Niels
+alignmentTN <- rscasim(Tilde, Niels, Duration ~ PositionY + PositionX | Trial, 864, 525, 60, 1/30)
+
+SimilarityTN <- sum(alignmentTN$cost)
+
+plot_alignment(Tilde, Niels, alignmentTN, Duration ~ PositionX + PositionY | Trial, offset_x = 100, offset_y = 100, nudge_x = 100, nudge_y = 100) + theme_bw()
+
+```
+
+```{r}
+# Comparing Tilde looking at a first person ostensive female and Tilde looking at a third person ostensive female
+
+Tilde3 <- subset(FixationsSE, ParticipantID == "Tilde" & ActorGender == "Female" & Direction == "Third person" & Ostensiveness == "Ostensive")
+
+alignment1vs3 <- rscasim(Tilde, Tilde3, Duration ~ PositionY + PositionX | Trial, 864, 525, 60, 1/30)
+
+Similarity1vs3 <- sum(alignment1vs3$cost)
+
+plot_alignment(Tilde, Tilde3, alignment1vs3, Duration ~ PositionX + PositionY | Trial, offset_x = 100, offset_y = 100, nudge_x = 100, nudge_y = 100) + theme_bw()
+```
+
+
+# Pupil size investigation/Exploratory analysis (just for fun)
+
+```{r}
+FixationsSE <- FixationsSE %>% 
+  mutate(ParticipantID = as.factor(ParticipantID))
+  
+Group1 <- FixationsSE %>%
+  subset(ParticipantID == "Tilde" | ParticipantID == "Niels" | ParticipantID == "laurits")
+
+Group1 %>% 
+  ggplot(aes(x = ParticipantID, y = PupilSize, fill = ParticipantID)) + geom_violin()
+
+```
+```{r}
+Group1_flirty_male <- FixationsSE %>% 
+    subset(ParticipantID == "Tilde" | ParticipantID == "Niels" | ParticipantID == "laurits") %>% 
+  filter(ActorGender == "Male" & Direction == "First person" & Ostensiveness == "Ostensive")
+
+Group1_flirty_female <- FixationsSE %>% 
+    subset(ParticipantID == "Tilde" | ParticipantID == "Niels" | ParticipantID == "laurits") %>% 
+  filter(ActorGender == "Female" & Direction == "First person" & Ostensiveness == "Ostensive")
+
+Group1_flirty_male %>% 
+    ggplot(aes(x = ParticipantID, y = PupilSize, fill = ParticipantID)) + geom_violin() + ggtitle("Flirty Male - Pupil Size")
+
+Group1_flirty_female %>% 
+    ggplot(aes(x = ParticipantID, y = PupilSize, fill = ParticipantID)) + geom_violin() + ggtitle("Flirty Female - Pupil Size")
+```
+
+```{r}
+# Investigating pupil size based on different conditions
+
+TildePupil <- FixationsSE %>% 
+  subset(ParticipantID == "Tilde") %>% 
+  mutate(ActorGender = as.factor(ActorGender))
+
+TildePupil %>% 
+  ggplot(aes(x = ActorGender, y = PupilSize, fill = ActorGender)) + geom_violin()
+
+TildePupil %>% 
+  ggplot(aes(x = Ostensiveness, y = PupilSize, fill = Ostensiveness)) + geom_violin()
+
+TildePupil %>% 
+  ggplot(aes(x = Direction, y = PupilSize, fill = Direction)) + geom_violin()
+```
+
+# Pupil size - actual assignment
+
+```{r}
+# Pupil Size over time 
+FixationsSE %>% 
+  ggplot(aes(x = FixationNo, y = PupilSize, color = ActorGender)) + geom_smooth() + facet_wrap(~ParticipantID)
+```
+
+```{r}
+# Pupil Size over time for one person
+Ditlev<- FixationsSE %>% 
+  subset(ParticipantID == "Ditlev")
+
+Ditlev %>% 
+  ggplot(aes(x = FixationNo, y = PupilSize, color = ActorGender)) + geom_smooth()
+```
+
+
+```{r}
+# Pupil Size density plot
+FixationsSE %>% 
+  ggplot(aes(x = PupilSize, color = ActorGender)) + geom_density() + facet_wrap(~ParticipantID)
+
+FixationsSE %>% 
+  ggplot(aes(x = PupilSize, fill = ParticipantID)) + geom_density(alpha = 0.5)
+
+# Pupil Size violin plot
+FixationsSE %>% 
+  ggplot(aes(x = ParticipantID, y = PupilSize, fill =ParticipantID)) + geom_violin() 
+```
+
+
+```{r}
+#Making a gender column
+FixationsSE <- FixationsSE %>% 
+  mutate(Gender = ifelse(
+    ParticipantID == "Tilde" | 
+    ParticipantID == "Alina" |
+    ParticipantID == "Astrid" |
+    ParticipantID == "Gergana" | 
+    ParticipantID == "IdaEB"| 
+    ParticipantID == "Katrine" | 
+    ParticipantID == "rikke" | 
+    ParticipantID == "sab" | 
+    ParticipantID == "sofie" | 
+    ParticipantID == "Tash" | 
+    ParticipantID == "Vlada", "female", "male")) 
+
+FixationsSE %>% 
+  ggplot(aes(x = PupilSize, fill = Gender)) + geom_density(alpha=0.5)
+
+```
+
+```{r}
+#Investigating predictors of Pupil Size
+model <- lmer(PupilSize ~ ActorGender + FixationNo+ (1|ParticipantID), data = FixationsSE)
+summary(model)
+```
+
+```{r}
+# Making different models to predict PupilSize
+m1vs3 <- lmer(PupilSize ~ Direction + (1|ParticipantID), data = FixationsSE)
+summary(m1vs3)
+
+mO <- lmer(PupilSize ~ Ostensiveness + (1|ParticipantID), data = FixationsSE)
+summary(mO)
+
+mAG <- lmer(PupilSize ~ ActorGender + (1|ParticipantID), data = FixationsSE)
+summary(mAG)
+
+mALL <- lmer(PupilSize ~ Direction + Ostensiveness + ActorGender + (1|ParticipantID), data = FixationsSE)
+summary(mALL)
+
+mALLgender <- lmer(PupilSize ~ Direction + Ostensiveness + ActorGender + Gender + (1|ParticipantID), data = FixationsSE)
+summary(mALLgender)
+
+mInteraction <- lmer(PupilSize ~ Direction * Ostensiveness * ActorGender + (1|ParticipantID), data = FixationsSE)
+summary(mInteraction) # Output: Pupil size will be highest when the actor is a first person female
+```
+
+```{r}
+#Plotting the interaction effects
+plot(effects::allEffects(mInteraction)) # direction*ostensiveness*actorgender effect plot
+
+#Comparing the models
+anova(m1vs3, mO, mAG, mALL, mALLgender, mInteraction)
+```
+
+```{r}
+#Playing around with a model that could predict gender
+FixationsSE <- FixationsSE %>% 
+  mutate(Gender = as.factor(Gender))
+
+GenderPredict <- glmer(Gender ~ PupilSize + (1|ParticipantID), data = FixationsSE, family=binomial(link="logit"))
+
+summary(GenderPredict) #Kind of problematic/non readable since the scale of PupilSize is so large 
+
+# We can try to scale the Pupil Size measure
+FixationsSE$scaled_pupilsize <- scale(FixationsSE$PupilSize)
+
+GenderPredictScaled <- glmer(Gender ~ scaled_pupilsize + (1|ParticipantID), data = FixationsSE, family=binomial(link="logit"))
+
+summary(GenderPredictScaled) # Doesn't really improve that much
+
+```
+
